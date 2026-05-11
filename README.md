@@ -22,7 +22,7 @@ This project implements a multi-layered encryption system that I designed from s
 Honest assessment of vulnerabilities.
 
 ## Author
-Your name and credits.
+Remy Elis
 
 ## License
 MIT License
