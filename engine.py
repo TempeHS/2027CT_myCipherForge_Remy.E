@@ -18,53 +18,88 @@ RULES:
   - decrypt(encrypt(message)) MUST return the original message
 """
 
-def simple_shift(text, shift):
+def phase1_encrypt(text, key):
     """
-    Shift every character by 'shift' positions.
+    Phase 1: Substitution — Shift every character by a fixed amount.
     
-    This is a simple Caesar cipher that works on ALL printable characters,
-    not just letters. It wraps around using modular arithmetic.
+    This layer changes WHAT each character is (its identity).
     
     Args:
-        text: The string to encrypt
-        shift: How many positions to shift (positive = forward)
-    
+        text: The plaintext string to encrypt
+        key: Dictionary containing encryption settings
+        
     Returns:
-        The encrypted string
+        The encrypted string with all characters shifted
     """
-    result = ""
+    # Get the shift amount from the key (default to 5 if not specified)
+    shift = key.get("shift", 5)
     
+    result = ""
     for char in text:
         if 32 <= ord(char) <= 126:  # Printable ASCII range
-            # Convert to 0-94 range
             position = ord(char) - 32
-            # Shift and wrap
             new_position = (position + shift) % 95
-            # Convert back to character
             result += chr(new_position + 32)
         else:
-            # Keep non-printable characters unchanged
             result += char
+
+    return result
     
     return result
 
-a = simple_shift("Hello World!", 7)
-b = simple_shift(a, -7)
-
-print(a, b)
-
-def simple_unshift(text, shift):
+def phase1_decrypt(text, key):
     """
-    Reverse the simple_shift encryption.
+    Phase 1: Reverse the substitution.
     
-    Decryption is just shifting in the opposite direction!
+    Decryption shifts in the OPPOSITE direction (subtracts instead of adds).
     
     Args:
         text: The encrypted string
-        shift: The same shift value used for encryption
-    
+        key: Dictionary containing the same encryption settings
+        
     Returns:
         The decrypted (original) string
     """
-    # Decryption = shifting backwards (negative)
-    return simple_shift(text, -shift)
+    shift = key.get("shift", 5)
+    
+    result = ""
+    for char in text:
+        if 32 <= ord(char) <= 126:
+            position = ord(char) - 32
+            new_position = (position - shift) % 95  # SUBTRACT to reverse!
+            result += chr(new_position + 32)
+        else:
+            result += char
+
+
+def encrypt(text, key):
+    """
+    CipherForge Master Encryption — Applies all 5 phases.
+    
+    Currently implemented: Phase 1 only
+    Coming soon: Phases 2-5
+    
+    Args:
+        text: The plaintext to encrypt
+        key: Dictionary with settings for all phases
+        
+    Returns:
+        Fully encrypted string
+    """
+    # Phase 1: Substitution
+    result = phase1_encrypt(text, key)
+    
+    # TODO: Phase 2 — Transposition
+    # result = phase2_encrypt(result, key)
+    
+    # TODO: Phase 3 — Key-Dependent
+    # result = phase3_encrypt(result, key)
+    
+    # TODO: Phase 4 — Noise Injection
+    # result = phase4_encrypt(result, key)
+    
+    # TODO: Phase 5 — Wild Card
+    # result = phase5_encrypt(result, key)
+    
+    return result
+
