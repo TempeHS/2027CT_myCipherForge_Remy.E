@@ -18,7 +18,31 @@ RULES:
   - decrypt(encrypt(message)) MUST return the original message
 """
 
-def phase1_encrypt(text, key):
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def load_key():
+    shift = os.getenv("CIPHER_SHIFT")
+
+    if shift is None:
+        raise ValueError("CIPHER_SHIFT is missing from .env")
+
+    return {
+        "shift": int(shift)
+    }
+
+
+def get_shift(key):
+    if key is None:
+        key = load_key()
+
+    return key["shift"]
+
+
+def phase1_encrypt(text, key=None):
     """
     Phase 1: Substitution — Shift every character by a fixed amount.
     
@@ -31,8 +55,8 @@ def phase1_encrypt(text, key):
     Returns:
         The encrypted string with all characters shifted
     """
-    # Get the shift amount from the key (default to 5 if not specified)
-    shift = key.get("shift", 5)
+    # Get the shift amount from the key loaded from .env.
+    shift = get_shift(key)
     
     result = ""
     for char in text:
@@ -44,10 +68,9 @@ def phase1_encrypt(text, key):
             result += char
 
     return result
-    
-    return result
 
-def phase1_decrypt(text, key):
+
+def phase1_decrypt(text, key=None):
     """
     Phase 1: Reverse the substitution.
     
@@ -60,7 +83,7 @@ def phase1_decrypt(text, key):
     Returns:
         The decrypted (original) string
     """
-    shift = key.get("shift", 5)
+    shift = get_shift(key)
     
     result = ""
     for char in text:
@@ -71,8 +94,10 @@ def phase1_decrypt(text, key):
         else:
             result += char
 
+    return result
 
-def encrypt(text, key):
+
+def encrypt(text, key=None):
     """
     CipherForge Master Encryption — Applies all 5 phases.
     
@@ -103,3 +128,19 @@ def encrypt(text, key):
     
     return result
 
+
+def decrypt(text, key=None):
+    """
+    CipherForge Master Decryption - Reverses all implemented phases.
+
+    Args:
+        text: The encrypted string
+        key: Dictionary with settings for all phases
+
+    Returns:
+        The decrypted original string
+    """
+    # Phase 1: Reverse substitution
+    result = phase1_decrypt(text, key)
+
+    return result
