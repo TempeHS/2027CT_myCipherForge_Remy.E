@@ -28,6 +28,8 @@ def load_key():
     shift = os.getenv("CIPHER_SHIFT")
     block_size = os.getenv("CIPHER_TRANSPOSE_BLOCK_SIZE")
     password = os.getenv("CIPHER_PASSWORD")
+    noise_interval = os.getenv("CIPHER_NOISE_INTERVAL")
+    noise_chars = os.getenv("CIPHER_NOISE_CHARS")
 
     if shift is None:
         raise ValueError("CIPHER_SHIFT is missing from .env")
@@ -35,11 +37,17 @@ def load_key():
         raise ValueError("CIPHER_TRANSPOSE_BLOCK_SIZE is missing from .env")
     if password is None:
         raise ValueError("CIPHER_PASSWORD is missing from .env")
+    if noise_interval is None:
+        raise ValueError("CIPHER_NOISE_INTERVAL is missing from .env")
+    if noise_chars is None:
+        raise ValueError("CIPHER_NOISE_CHARS is missing from .env")
 
     return {
         "shift": int(shift),
         "block_size": int(block_size),
-        "password": password
+        "password": password,
+        "noise_interval": int(noise_interval),
+        "noise_chars": noise_chars
     }
 
 
@@ -62,6 +70,20 @@ def get_password(key):
         key = load_key()
 
     return key["password"]
+
+
+def get_noise_interval(key):
+    if key is None:
+        key = load_key()
+
+    return key["noise_interval"]
+
+
+def get_noise_chars(key):
+    if key is None:
+        key = load_key()
+
+    return key["noise_chars"]
 
 
 def caesar_shift(text, shift):
@@ -181,6 +203,30 @@ def phase3_encrypt(text, key=None):
     
     return result
 
+def phase4_encrypt(text, key=None):
+    """Insert noise character every N positions."""
+    interval = get_noise_interval(key)
+    noise_chars = get_noise_chars(key)
+
+    if interval <= 0:
+        raise ValueError("CIPHER_NOISE_INTERVAL must be a positive integer")
+    if len(noise_chars) == 0:
+        raise ValueError("CIPHER_NOISE_CHARS must not be empty")
+    
+    result = ""
+    count = 0
+    noise_count = 0
+    
+    for char in text:
+        result += char
+        count += 1
+        # Insert noise after every N real characters
+        if count % interval == 0:
+            result += noise_chars[noise_count % len(noise_chars)]
+            noise_count += 1
+    
+    return result
+
 def phase1_decrypt(text, key=None):
     """
     Phase 1: Reverse the substitution.
@@ -252,6 +298,31 @@ def phase3_decrypt(text, key=None):
     
     return result
 
+def phase4_decrypt(text, key=None):
+    """Remove noise characters at their known positions."""
+    interval = get_noise_interval(key)
+    noise_chars = get_noise_chars(key)
+
+    if interval <= 0:
+        raise ValueError("CIPHER_NOISE_INTERVAL must be a positive integer")
+    if len(noise_chars) == 0:
+        raise ValueError("CIPHER_NOISE_CHARS must not be empty")
+    
+    result = ""
+    real_count = 0
+    i = 0
+    
+    while i < len(text):
+        result += text[i]
+        real_count += 1
+        i += 1
+        
+        # Skip the noise character after every N real characters
+        if real_count % interval == 0 and i < len(text):
+            i += 1  # Skip one cycling noise character
+    
+    return result
+
 def encrypt(text, key=None):
     """
     CipherForge Master Encryption — Applies all 5 phases.
@@ -275,15 +346,15 @@ def encrypt(text, key=None):
     # Phase 3: Key-Dependent
     result = phase3_encrypt(result, key)
     
-    # TODO: Phase 4 — Noise Injection
-    # result = phase4_encrypt(result, key)
+    # Phase 4: Noise Injection
+    result = phase4_encrypt(result, key)
     
     # TODO: Phase 5 — Wild Card
     # result = phase5_encrypt(result, key)
     
     return result
 
-def decrypt(text, key):
+def decrypt(text, key=None):
     """
     CipherForge Master Decryption — Reverses all 5 phases.
     
@@ -296,8 +367,8 @@ def decrypt(text, key):
     # TODO: Phase 5 — Reverse Wild Card (first!)
     # result = phase5_decrypt(result, key)
     
-    # TODO: Phase 4 — Reverse Noise Injection
-    # result = phase4_decrypt(result, key)
+    # Phase 4: Reverse Noise Injection
+    result = phase4_decrypt(result, key)
     
     # Phase 3: Reverse Password-Dependent
     result = phase3_decrypt(result, key)
