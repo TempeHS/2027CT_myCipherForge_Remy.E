@@ -18,6 +18,7 @@ RULES:
   - decrypt(encrypt(message)) MUST return the original message
 """
 
+import base64
 import os
 
 from dotenv import load_dotenv
@@ -30,6 +31,7 @@ def load_key():
     password = os.getenv("CIPHER_PASSWORD")
     noise_interval = os.getenv("CIPHER_NOISE_INTERVAL")
     noise_chars = os.getenv("CIPHER_NOISE_CHARS")
+    xor_password = os.getenv("CIPHER_XOR_PASSWORD")
 
     if shift is None:
         raise ValueError("CIPHER_SHIFT is missing from .env")
@@ -41,13 +43,16 @@ def load_key():
         raise ValueError("CIPHER_NOISE_INTERVAL is missing from .env")
     if noise_chars is None:
         raise ValueError("CIPHER_NOISE_CHARS is missing from .env")
+    if xor_password is None:
+        raise ValueError("CIPHER_XOR_PASSWORD is missing from .env")
 
     return {
         "shift": int(shift),
         "block_size": int(block_size),
         "password": password,
         "noise_interval": int(noise_interval),
-        "noise_chars": noise_chars
+        "noise_chars": noise_chars,
+        "xor_password": xor_password
     }
 
 
@@ -84,6 +89,13 @@ def get_noise_chars(key):
         key = load_key()
 
     return key["noise_chars"]
+
+
+def get_xor_password(key):
+    if key is None:
+        key = load_key()
+
+    return key["xor_password"]
 
 
 def caesar_shift(text, shift):
@@ -227,6 +239,23 @@ def phase4_encrypt(text, key=None):
     
     return result
 
+def phase5_encrypt(text, key=None):
+    """Final wildcard layer using XOR encoded as Base64."""
+    xor_password = get_xor_password(key)
+
+    if len(xor_password) == 0:
+        raise ValueError("CIPHER_XOR_PASSWORD must not be empty")
+
+    encrypted_bytes = bytearray()
+    password_bytes = xor_password.encode("utf-8")
+
+    for i, byte in enumerate(text.encode("utf-8")):
+        key_byte = password_bytes[i % len(password_bytes)]
+        encrypted_bytes.append(byte ^ key_byte)
+
+    return base64.b64encode(encrypted_bytes).decode("ascii")
+
+
 def phase1_decrypt(text, key=None):
     """
     Phase 1: Reverse the substitution.
@@ -323,6 +352,24 @@ def phase4_decrypt(text, key=None):
     
     return result
 
+
+def phase5_decrypt(text, key=None):
+    """Reverse the Base64 XOR wildcard layer."""
+    xor_password = get_xor_password(key)
+
+    if len(xor_password) == 0:
+        raise ValueError("CIPHER_XOR_PASSWORD must not be empty")
+
+    encrypted_bytes = base64.b64decode(text.encode("ascii"))
+    result = bytearray()
+    password_bytes = xor_password.encode("utf-8")
+
+    for i, byte in enumerate(encrypted_bytes):
+        key_byte = password_bytes[i % len(password_bytes)]
+        result.append(byte ^ key_byte)
+
+    return bytes(result).decode("utf-8")
+
 def encrypt(text, key=None):
     """
     CipherForge Master Encryption — Applies all 5 phases.
@@ -349,8 +396,8 @@ def encrypt(text, key=None):
     # Phase 4: Noise Injection
     result = phase4_encrypt(result, key)
     
-    # TODO: Phase 5 — Wild Card
-    # result = phase5_encrypt(result, key)
+    # Phase 5: Wild Card
+    result = phase5_encrypt(result, key)
     
     return result
 
@@ -364,8 +411,8 @@ def decrypt(text, key=None):
     """
     result = text
     
-    # TODO: Phase 5 — Reverse Wild Card (first!)
-    # result = phase5_decrypt(result, key)
+    # Phase 5: Reverse Wild Card
+    result = phase5_decrypt(result, key)
     
     # Phase 4: Reverse Noise Injection
     result = phase4_decrypt(result, key)

@@ -1,3 +1,5 @@
 import engine
 
-print(engine.phase4_encrypt('Hello World'))
+print("---------------")
+print("|", engine.phase5_decrypt('GyAvPip0HCorPyE='), "|")
+print("---------------")
