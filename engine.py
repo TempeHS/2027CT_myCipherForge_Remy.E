@@ -27,15 +27,19 @@ load_dotenv()
 def load_key():
     shift = os.getenv("CIPHER_SHIFT")
     block_size = os.getenv("CIPHER_TRANSPOSE_BLOCK_SIZE")
+    password = os.getenv("CIPHER_PASSWORD")
 
     if shift is None:
         raise ValueError("CIPHER_SHIFT is missing from .env")
     if block_size is None:
         raise ValueError("CIPHER_TRANSPOSE_BLOCK_SIZE is missing from .env")
+    if password is None:
+        raise ValueError("CIPHER_PASSWORD is missing from .env")
 
     return {
         "shift": int(shift),
-        "block_size": int(block_size)
+        "block_size": int(block_size),
+        "password": password
     }
 
 
@@ -51,6 +55,13 @@ def get_block_size(key):
         key = load_key()
 
     return key["block_size"]
+
+
+def get_password(key):
+    if key is None:
+        key = load_key()
+
+    return key["password"]
 
 
 def caesar_shift(text, shift):
@@ -117,22 +128,58 @@ def phase2_encrypt(text, key=None):
     Returns:
         The transposed string with characters rearranged
     """
-    try:
-        # Get block size from key (default to 4 if not specified)
-        block_size = get_block_size(key)
+    # Get block size from key loaded from .env.
+    block_size = get_block_size(key)
+
+    if block_size <= 0:
+        raise ValueError("CIPHER_TRANSPOSE_BLOCK_SIZE must be a positive integer")
+
+    result = ""
+
+    # Process text in chunks of block_size
+    for i in range(0, len(text), block_size):
+        # Extract this block (might be shorter at the end)
+        block = text[i:i + block_size]
+        # Reverse the block and add to result
+        result += block[::-1]
+
+    return result
+
+def phase3_encrypt(text, key=None):
+    """
+    Phase 3: Password-Dependent — Variable shifts based on password.
+    
+    Each character is shifted by a different amount determined by
+    the corresponding character in the repeating password.
+    This destroys frequency patterns!
+    
+    Args:
+        text: The string to transform (already Phase 1+2 encrypted)
+        key: Dictionary containing encryption settings
         
-        result = ""
-        
-        # Process text in chunks of block_size
-        for i in range(0, len(text), block_size):
-            # Extract this block (might be shorter at the end)
-            block = text[i:i + block_size]
-            # Reverse the block and add to result
-            result += block[::-1]
-        
-        return result
-    except ValueError:
-        return print("Key must be a positive integer for block size. Check .env or pass a key dictionary.")
+    Returns:
+        The password-encrypted string
+    """
+    # Get password from key loaded from .env.
+    password = get_password(key)
+    
+    result = ""
+    
+    for i, char in enumerate(text):
+        if 32 <= ord(char) <= 126:
+            # Get the password character for this position (cycling)
+            password_char = password[i % len(password)]
+            # Calculate shift from password character
+            password_shift = ord(password_char) % 95
+            
+            # Apply the shift (same math as Phase 1)
+            position = ord(char) - 32
+            new_position = (position + password_shift) % 95
+            result += chr(new_position + 32)
+        else:
+            result += char
+    
+    return result
 
 def phase1_decrypt(text, key=None):
     """
@@ -172,6 +219,39 @@ def phase2_decrypt(text, key=None):
     # Reverse twice = original!
     return phase2_encrypt(text, key)
 
+def phase3_decrypt(text, key=None):
+    """
+    Phase 3: Reverse the password-dependent encryption.
+    
+    CRITICAL: Must use the SAME password that was used for encryption!
+    Wrong password = garbage output.
+    
+    Args:
+        text: The encrypted string
+        key: Dictionary with the SAME password used for encryption
+        
+    Returns:
+        The decrypted string (if password is correct)
+    """
+    password = get_password(key)
+    
+    result = ""
+    
+    for i, char in enumerate(text):
+        if 32 <= ord(char) <= 126:
+            # Get same password character for this position
+            password_char = password[i % len(password)]
+            password_shift = ord(password_char) % 95
+            
+            # SUBTRACT the shift to reverse encryption
+            position = ord(char) - 32
+            new_position = (position - password_shift) % 95
+            result += chr(new_position + 32)
+        else:
+            result += char
+    
+    return result
+
 def encrypt(text, key=None):
     """
     CipherForge Master Encryption — Applies all 5 phases.
@@ -192,8 +272,8 @@ def encrypt(text, key=None):
     # Phase 2: Transposition
     result = phase2_encrypt(result, key)
     
-    # TODO: Phase 3 — Key-Dependent
-    # result = phase3_encrypt(result, key)
+    # Phase 3: Key-Dependent
+    result = phase3_encrypt(result, key)
     
     # TODO: Phase 4 — Noise Injection
     # result = phase4_encrypt(result, key)
@@ -203,22 +283,29 @@ def encrypt(text, key=None):
     
     return result
 
-
-def decrypt(text, key=None):
+def decrypt(text, key):
     """
-    CipherForge Master Decryption - Reverses all implemented phases.
-
-    Args:
-        text: The encrypted string
-        key: Dictionary with settings for all phases
-
-    Returns:
-        The decrypted original string
+    CipherForge Master Decryption — Reverses all 5 phases.
+    
+    CRITICAL: Phases reversed in OPPOSITE order!
+    Encrypt: 1 → 2 → 3 → 4 → 5
+    Decrypt: 5 → 4 → 3 → 2 → 1
     """
-    # Phase 2: Reverse transposition
-    result = phase2_decrypt(text, key)
-
-    # Phase 1: Reverse substitution
+    result = text
+    
+    # TODO: Phase 5 — Reverse Wild Card (first!)
+    # result = phase5_decrypt(result, key)
+    
+    # TODO: Phase 4 — Reverse Noise Injection
+    # result = phase4_decrypt(result, key)
+    
+    # Phase 3: Reverse Password-Dependent
+    result = phase3_decrypt(result, key)
+    
+    # Phase 2: Reverse Transposition
+    result = phase2_decrypt(result, key)
+    
+    # Phase 1: Reverse Substitution (last!)
     result = phase1_decrypt(result, key)
-
+    
     return result

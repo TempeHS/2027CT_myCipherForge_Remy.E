@@ -1,3 +1,3 @@
 import engine
 
-print(engine.decrypt("++2O@wk(3+%(v"))
+print(engine.decrypt('~puBtl_myje|q]uwhluma)x|L'))
