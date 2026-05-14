@@ -26,12 +26,16 @@ load_dotenv()
 
 def load_key():
     shift = os.getenv("CIPHER_SHIFT")
+    block_size = os.getenv("CIPHER_TRANSPOSE_BLOCK_SIZE")
 
     if shift is None:
         raise ValueError("CIPHER_SHIFT is missing from .env")
+    if block_size is None:
+        raise ValueError("CIPHER_TRANSPOSE_BLOCK_SIZE is missing from .env")
 
     return {
-        "shift": int(shift)
+        "shift": int(shift),
+        "block_size": int(block_size)
     }
 
 
@@ -40,6 +44,13 @@ def get_shift(key):
         key = load_key()
 
     return key["shift"]
+
+
+def get_block_size(key):
+    if key is None:
+        key = load_key()
+
+    return key["block_size"]
 
 
 def caesar_shift(text, shift):
@@ -92,6 +103,36 @@ def phase1_encrypt(text, key=None):
 
     return result
 
+def phase2_encrypt(text, key=None):
+    """
+    Phase 2: Transposition — Rearrange character positions.
+    
+    Uses block reversal: split into blocks and reverse each one.
+    This layer changes WHERE each character is (its position).
+    
+    Args:
+        text: The string to transform (already Phase 1 encrypted)
+        key: Dictionary containing encryption settings
+        
+    Returns:
+        The transposed string with characters rearranged
+    """
+    try:
+        # Get block size from key (default to 4 if not specified)
+        block_size = get_block_size(key)
+        
+        result = ""
+        
+        # Process text in chunks of block_size
+        for i in range(0, len(text), block_size):
+            # Extract this block (might be shorter at the end)
+            block = text[i:i + block_size]
+            # Reverse the block and add to result
+            result += block[::-1]
+        
+        return result
+    except ValueError:
+        return print("Key must be a positive integer for block size. Check .env or pass a key dictionary.")
 
 def phase1_decrypt(text, key=None):
     """
@@ -113,6 +154,23 @@ def phase1_decrypt(text, key=None):
 
     return result
 
+def phase2_decrypt(text, key=None):
+    """
+    Phase 2: Reverse the transposition.
+    
+    For block reversal, decryption is the same as encryption!
+    Reversing a reversed block returns the original.
+    
+    Args:
+        text: The transposed string
+        key: Dictionary containing the same encryption settings
+        
+    Returns:
+        The un-transposed string
+    """
+    # Block reversal is self-inverting: encrypt == decrypt
+    # Reverse twice = original!
+    return phase2_encrypt(text, key)
 
 def encrypt(text, key=None):
     """
@@ -131,8 +189,8 @@ def encrypt(text, key=None):
     # Phase 1: Substitution
     result = phase1_encrypt(text, key)
     
-    # TODO: Phase 2 — Transposition
-    # result = phase2_encrypt(result, key)
+    # Phase 2: Transposition
+    result = phase2_encrypt(result, key)
     
     # TODO: Phase 3 — Key-Dependent
     # result = phase3_encrypt(result, key)
@@ -157,7 +215,10 @@ def decrypt(text, key=None):
     Returns:
         The decrypted original string
     """
+    # Phase 2: Reverse transposition
+    result = phase2_decrypt(text, key)
+
     # Phase 1: Reverse substitution
-    result = phase1_decrypt(text, key)
+    result = phase1_decrypt(result, key)
 
     return result
