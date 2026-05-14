@@ -42,6 +42,34 @@ def get_shift(key):
     return key["shift"]
 
 
+def caesar_shift(text, shift):
+    result = ""
+
+    for char in text:
+        if 32 <= ord(char) <= 126:
+            position = ord(char) - 32
+            new_position = (position + shift) % 95
+            result += chr(new_position + 32)
+        else:
+            result += char
+
+    return result
+
+
+def atbash_ascii(text):
+    result = ""
+
+    for char in text:
+        if 32 <= ord(char) <= 126:
+            position = ord(char) - 32
+            new_position = 94 - position
+            result += chr(new_position + 32)
+        else:
+            result += char
+
+    return result
+
+
 def phase1_encrypt(text, key=None):
     """
     Phase 1: Substitution — Shift every character by a fixed amount.
@@ -55,17 +83,12 @@ def phase1_encrypt(text, key=None):
     Returns:
         The encrypted string with all characters shifted
     """
+    # Caesar
     # Get the shift amount from the key loaded from .env.
     shift = get_shift(key)
-    
-    result = ""
-    for char in text:
-        if 32 <= ord(char) <= 126:  # Printable ASCII range
-            position = ord(char) - 32
-            new_position = (position + shift) % 95
-            result += chr(new_position + 32)
-        else:
-            result += char
+
+    caesar_result = caesar_shift(text, shift)
+    result = atbash_ascii(caesar_result)
 
     return result
 
@@ -84,15 +107,9 @@ def phase1_decrypt(text, key=None):
         The decrypted (original) string
     """
     shift = get_shift(key)
-    
-    result = ""
-    for char in text:
-        if 32 <= ord(char) <= 126:
-            position = ord(char) - 32
-            new_position = (position - shift) % 95  # SUBTRACT to reverse!
-            result += chr(new_position + 32)
-        else:
-            result += char
+
+    atbash_result = atbash_ascii(text)
+    result = caesar_shift(atbash_result, -shift)
 
     return result
 
