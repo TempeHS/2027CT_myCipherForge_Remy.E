@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <h1 class="mb-4">🛠️ CipherForge Workshop</h1>
+
+        <div class="row g-4">
+            <!-- Input Form -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Message & Key Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="/workshop">
+                            <!-- Message Input -->
+                            <div class="mb-3">
+                                <label for="message" class="form-label">Message</label>
+                                <textarea class="form-control" id="message" name="message" rows="4"
+                                    placeholder="Enter your message here...">{{ original }}</textarea>
+                            </div>
+
+                            <!-- Key Settings -->
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-6">
+                                    <label for="shift" class="form-label">Shift (Phase 1)</label>
+                                    <input type="number" class="form-control" id="shift" name="shift"
+                                        value="{{ form_data.shift }}" min="1" max="94">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="block_size" class="form-label">Block Size (Phase 2)</label>
+                                    <input type="number" class="form-control" id="block_size" name="block_size"
+                                        value="{{ form_data.block_size }}" min="2" max="20">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password (Phase 3)</label>
+                                <input type="text" class="form-control" id="password" name="password"
+                                    value="{{ form_data.password }}" placeholder="Enter encryption password">
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-6">
+                                    <label for="noise_interval" class="form-label">Noise Interval (Phase 4)</label>
+                                    <input type="number" class="form-control" id="noise_interval" name="noise_interval"
+                                        value="{{ form_data.noise_interval }}" min="2" max="10">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="noise_chars" class="form-label">Noise Characters</label>
+                                    <input type="text" class="form-control" id="noise_chars" name="noise_chars"
+                                        value="{{ form_data.noise_chars }}" placeholder="e.g. ~!#">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="xor_password" class="form-label">XOR Password (Phase 5)</label>
+                                <input type="text" class="form-control" id="xor_password" name="xor_password"
+                                    value="{{ form_data.xor_password }}" placeholder="Enter Phase 5 password">
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-grid gap-2">
+                                <button type="submit" name="action" value="encrypt" class="btn btn-primary btn-lg">
+                                    🔒 Encrypt
+                                </button>
+                                <button type="submit" name="action" value="decrypt"
+                                    class="btn btn-outline-primary btn-lg">
+                                    🔓 Decrypt
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Display -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Result</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if result %}
+                        <div class="result-box">
+                            <code>{{ result }}</code>
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                Original length: {{ original|length }} characters<br>
+                                Result length: {{ result|length }} characters
+                            </small>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-5">
+                            <p>Enter a message and click Encrypt or Decrypt</p>
+                            <p class="lead">Your encrypted/decrypted result will appear here</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
